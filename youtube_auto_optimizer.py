@@ -3,7 +3,9 @@ import google.generativeai as genai
 from googleapiclient.discovery import build
 from google.oauth2.credentials import Credentials
 
-# 1. GitHub Secrets se credentials load karna
+# ==========================================
+# 1. ENV SECRETS & SETUP
+# ==========================================
 API_KEY = os.environ.get("YOUTUBE_API_KEY")
 CHANNEL_ID = os.environ.get("YOUTUBE_CHANNEL_ID")
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
@@ -11,12 +13,13 @@ CLIENT_ID = os.environ.get("YT_CLIENT_ID")
 CLIENT_SECRET = os.environ.get("YT_CLIENT_SECRET")
 REFRESH_TOKEN = os.environ.get("YT_REFRESH_TOKEN")
 
-# 2. Gemini API Configure karna
+# Gemini API Configuration
 genai.configure(api_key=GEMINI_API_KEY)
 model = genai.GenerativeModel("gemini-2.5-flash")
 
+
 def get_authenticated_service():
-    """OAuth 2.0 ke zariye YouTube authenticated service banata hai"""
+    """OAuth 2.0 Credentials validation & YouTube API service creation"""
     creds = Credentials(
         token=None,
         refresh_token=REFRESH_TOKEN,
@@ -27,9 +30,69 @@ def get_authenticated_service():
     )
     return build("youtube", "v3", credentials=creds)
 
+
+def optimize_channel_growth(youtube):
+    """Channel-level analysis karke channel profile ko subscribers & views ke liye optimize karta hai"""
+    try:
+        print("\n🔍 Analyzing Channel Profile for Growth & Subscriber Boost...")
+        ch_request = youtube.channels().list(part="snippet,statistics", id=CHANNEL_ID)
+        ch_response = ch_request.execute()
+
+        if not ch_response["items"]:
+            return
+
+        channel_info = ch_response["items"][0]
+        snippet = channel_info["snippet"]
+        stats = channel_info["statistics"]
+
+        current_title = snippet.get("title", "")
+        current_desc = snippet.get("description", "")
+        sub_count = stats.get("subscriberCount", "Hidden")
+        view_count = stats.get("viewCount", "0")
+
+        print(f"📊 Channel Stats -> Subscribers: {sub_count} | Total Views: {view_count}")
+
+        # Gemini se channel description ko channel growth ke liye optimize karwana
+        prompt = f"""
+        Aap ek expert YouTube Channel Growth Strategist hain. Is YouTube channel ki profile ko analyze karke ek high-converting, professional aur subscriber-friendly Channel Description likhein.
+
+        Channel Name: {current_title}
+        Current Channel Description: {current_desc}
+
+        INSTRUCTIONS:
+        1. Ek engaging aur welcoming description likhein jo naye visitors ko subscriber me badal de.
+        2. Channel ki niche (jaise Anime, Series, Storytelling) ke best search keywords shamil karein.
+        3. Call to Action (Subscribe reminder) zaroor ho aur emojis ka use karein.
+        4. Max length 1000 characters tak honi chahiye.
+
+        STRICT OUTPUT FORMAT:
+        CHANNEL_DESC: [Optimized Channel Description Here]
+        """
+
+        response = model.generate_content(prompt)
+        text = response.text.strip()
+
+        if "CHANNEL_DESC:" in text:
+            new_channel_desc = text.split("CHANNEL_DESC:")[1].strip()
+            if new_channel_desc and len(new_channel_desc) <= 5000:
+                snippet["description"] = new_channel_desc
+                
+                # Channel update request
+                youtube.channels().update(
+                    part="snippet",
+                    body={
+                        "id": CHANNEL_ID,
+                        "snippet": snippet
+                    }
+                ).execute()
+                print("✅ SUCCESS: Channel Profile & Description upgraded for maximum growth!")
+
+    except Exception as e:
+        print(f"⚠️ Channel Optimization Notice: {e}")
+
+
 def get_channel_videos(youtube, max_results=35):
-    """Channel se videos ki list (ID, Title, Description, Tags) nikalta hai"""
-    # Pehle channel ki 'Uploads' playlist ID nikalte hain
+    """Channel se latest videos ki full metadata list nikalta hai"""
     ch_request = youtube.channels().list(part="contentDetails", id=CHANNEL_ID)
     ch_response = ch_request.execute()
     uploads_playlist_id = ch_response["items"][0]["contentDetails"]["relatedPlaylists"]["uploads"]
@@ -48,7 +111,6 @@ def get_channel_videos(youtube, max_results=35):
 
         video_ids = [item["snippet"]["resourceId"]["videoId"] for item in pl_response["items"]]
         
-        # Videos ki poori details (statistics, snippet) lene ke liye
         v_request = youtube.videos().list(
             part="snippet,statistics",
             id=",".join(video_ids)
@@ -60,7 +122,8 @@ def get_channel_videos(youtube, max_results=35):
                 "id": v["id"],
                 "title": v["snippet"]["title"],
                 "description": v["snippet"]["description"],
-                "tags": v["snippet"].get("tags", [])
+                "tags": v["snippet"].get("tags", []),
+                "categoryId": v["snippet"].get("categoryId", "24")
             })
 
         next_page_token = pl_response.get("nextPageToken")
@@ -69,48 +132,65 @@ def get_channel_videos(youtube, max_results=35):
 
     return videos[:max_results]
 
-def optimize_with_gemini(title, description):
-    """Gemini 2.5-flash se behtareen SEO Title, Description aur Tags generate karwata hai"""
-    prompt = f"""
-    Aap ek expert YouTube SEO Optimizer hain. Niche diye gaye YouTube video ke title aur description ko analyze karein aur ek behtareen, engaging, aur search-friendly SEO package generate karein.
-    
-    Current Title: {title}
-    Current Description: {description}
 
-    Kripya output strictly is format me dein (kisi aur extra text ke bina):
-    TITLE: [Naya optimized aur catchy title yahan likhein]
-    DESCRIPTION: [Optimized description with proper keywords and tags summary yahan likhein]
-    TAGS: [comma separated tags yahan likhein, jaise: tag1, tag2, tag3]
+def optimize_with_gemini(title, description):
+    """Gemini AI Engine with Strict Character Limit Control"""
+    prompt = f"""
+    Aap ek world-class YouTube SEO Specialist hain. Is video ke metadata ko analyze karke maximum CTR (Click-Through Rate), high search rankings, aur viewer retention ke liye optimize karein.
+
+    CURRENT TITLE: {title}
+    CURRENT DESCRIPTION: {description}
+
+    INSTRUCTIONS:
+    1. TITLE: Super-catchy aur high-CTR hona chahiye (Hinglish/Hindi tone). Episode number (jaise Ep 1, Part 2) zaroor maintain rakhein. STRICTLY 100 characters se bada nahi hona chahiye.
+    2. DESCRIPTION: Clear structure with Emojis, Short Summary, Subscribe Reminder, aur end me 4-6 trending #hashtags.
+    3. TAGS: 12 to 15 viral search tags (comma-separated).
+
+    STRICT OUTPUT FORMAT:
+    TITLE: [Optimized Title under 100 chars]
+    DESCRIPTION: [Optimized Structured Description]
+    TAGS: [tag1, tag2, tag3, tag4]
     """
 
     try:
         response = model.generate_content(prompt)
         text = response.text.strip()
-        
-        # Parsing response safely
-        lines = text.split("\n")
+
         opt_title = title
         opt_desc = description
         opt_tags = []
 
-        for line in lines:
-            if line.startswith("TITLE:"):
-                opt_title = line.replace("TITLE:", "").strip()
-            elif line.startswith("DESCRIPTION:"):
-                opt_desc = line.replace("DESCRIPTION:", "").strip()
-            elif line.startswith("TAGS:"):
-                tags_str = line.replace("TAGS:", "").strip()
-                opt_tags = [t.strip() for t in tags_str.split(",") if t.strip()]
+        if "TITLE:" in text and "DESCRIPTION:" in text and "TAGS:" in text:
+            title_part = text.split("TITLE:")[1].split("DESCRIPTION:")[0].strip()
+            desc_part = text.split("DESCRIPTION:")[1].split("TAGS:")[0].strip()
+            tags_part = text.split("TAGS:")[1].strip()
+
+            if title_part:
+                opt_title = title_part
+            if desc_part:
+                opt_desc = desc_part
+            if tags_part:
+                opt_tags = [t.strip() for t in tags_part.split(",") if t.strip()]
+
+        # STREAK LIMIT ENFORCEMENT FOR YOUTUBE RULES:
+        # Title max 100 characters limit safety check
+        if len(opt_title) > 100:
+            opt_title = opt_title[:97] + "..."
+
+        # Description max 5000 characters limit safety check
+        if len(opt_desc) > 5000:
+            opt_desc = opt_desc[:4997] + "..."
 
         return opt_title, opt_desc, opt_tags
+
     except Exception as e:
-        print(f"Gemini Error: {e}")
+        print(f"⚠️ Gemini API Error: {e}")
         return title, description, []
 
-def update_video_metadata(youtube, video_id, new_title, new_description, new_tags):
-    """YouTube API ke zariye video ke metadata ko update karta hai"""
+
+def update_video_metadata(youtube, video_id, new_title, new_description, new_tags, category_id):
+    """Safely updates YouTube Video Metadata with API limit checks"""
     try:
-        # Pehle current snippet fetch karte hain taaki category ya baaki cheezein disturb na ho
         v_request = youtube.videos().list(part="snippet", id=video_id)
         v_response = v_request.execute()
         
@@ -120,6 +200,7 @@ def update_video_metadata(youtube, video_id, new_title, new_description, new_tag
         snippet = v_response["items"][0]["snippet"]
         snippet["title"] = new_title
         snippet["description"] = new_description
+        snippet["categoryId"] = category_id
         if new_tags:
             snippet["tags"] = new_tags
 
@@ -131,27 +212,54 @@ def update_video_metadata(youtube, video_id, new_title, new_description, new_tag
             }
         )
         update_request.execute()
-        print(f"Successfully Optimized & Updated: {new_title}")
+        print(f"✅ SUCCESS: Updated Video -> {new_title}")
+
     except Exception as e:
-        print(f"Update Error for video {video_id}: {e}")
+        print(f"❌ UPDATE ERROR (Video ID: {video_id}): {e}")
+
 
 def main():
-    print("YouTube Auto SEO Optimizer Started...")
-    youtube = get_authenticated_service()
+    print("==================================================")
+    print("🚀 FULL CHANNEL & VIDEO GROWTH OPTIMIZER (PRO)")
+    print("==================================================")
     
-    # 35 videos ka audit (Aap chahein toh ise badal bhi sakte hain)
-    videos = get_channel_videos(youtube, max_results=35)
-    print(f"Total {len(videos)} videos fetched for optimization check.")
+    youtube = get_authenticated_service()
 
-    for v in videos:
-        print(f"\nProcessing: {v['title']}")
+    # 1. Pehle poore channel ki profile ko growth ke liye optimize karein
+    optimize_channel_growth(youtube)
+
+    # 2. Ab latest videos ki list fetch karke unhe optimize karein
+    videos = get_channel_videos(youtube, max_results=35)
+    print(f"\n📋 Fetched top {len(videos)} videos from channel for inspection.\n")
+
+    optimized_count = 0
+    skipped_count = 0
+
+    for idx, v in enumerate(videos, 1):
+        print(f"[{idx}/{len(videos)}] Checking Video: {v['title']}")
+
+        # Smart Skip Logic: Agar description 150 chars se zyada hai aur 5+ tags hain toh quota bachane ke liye skip karein
+        is_description_good = len(v['description'].strip()) > 150
+        has_sufficient_tags = len(v['tags']) >= 5
+
+        if is_description_good and has_sufficient_tags:
+            print(f"   ⏩ SKIPPED: Metadata is already high quality.\n")
+            skipped_count += 1
+            continue
+
+        print(f"   ⚡ OPTIMIZING via Gemini AI...")
         new_title, new_desc, new_tags = optimize_with_gemini(v['title'], v['description'])
         
-        # Video update execute karein
-        update_video_metadata(youtube, v['id'], new_title, new_desc, new_tags)
+        if new_title and new_desc:
+            update_video_metadata(youtube, v['id'], new_title, new_desc, new_tags, v['categoryId'])
+            optimized_count += 1
+        print("-" * 50)
 
-    print("\nAll tasks completed successfully!")
+    print("\n==================================================")
+    print(f"🎉 DAILY CHANNEL GROWTH AUTOMATION COMPLETE!")
+    print(f"📊 Summary: {optimized_count} Videos Updated | {skipped_count} Skipped")
+    print("==================================================")
+
 
 if __name__ == "__main__":
     main()
-      
