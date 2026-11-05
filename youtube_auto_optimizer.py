@@ -1,4 +1,5 @@
 import os
+import time
 import google.generativeai as genai
 from googleapiclient.discovery import build
 from google.oauth2.credentials import Credentials
@@ -13,7 +14,7 @@ CLIENT_ID = os.environ.get("YT_CLIENT_ID")
 CLIENT_SECRET = os.environ.get("YT_CLIENT_SECRET")
 REFRESH_TOKEN = os.environ.get("YT_REFRESH_TOKEN")
 
-# Gemini API Configuration (Updated to gemini-3.8-flash)
+# Gemini API Configuration
 genai.configure(api_key=GEMINI_API_KEY)
 model = genai.GenerativeModel("gemini-3.8-flash")
 
@@ -32,7 +33,7 @@ def get_authenticated_service():
 
 
 def optimize_channel_growth(youtube):
-    """Channel-level analysis karke channel profile ko subscribers & views ke liye optimize karta hai"""
+    """Channel-level analysis karke channel profile ko optimize karta hai"""
     try:
         print("\n🔍 Analyzing Channel Profile for Growth & Subscriber Boost...")
         ch_request = youtube.channels().list(part="snippet,statistics", id=CHANNEL_ID)
@@ -52,7 +53,6 @@ def optimize_channel_growth(youtube):
 
         print(f"📊 Channel Stats -> Subscribers: {sub_count} | Total Views: {view_count}")
 
-        # Gemini se channel description ko channel growth ke liye optimize karwana
         prompt = f"""
         Aap ek expert YouTube Channel Growth Strategist hain. Is YouTube channel ki profile ko analyze karke ek high-converting, professional aur subscriber-friendly Channel Description likhein.
 
@@ -77,7 +77,6 @@ def optimize_channel_growth(youtube):
             if new_channel_desc and len(new_channel_desc) <= 5000:
                 snippet["description"] = new_channel_desc
                 
-                # Channel update request
                 youtube.channels().update(
                     part="snippet",
                     body={
@@ -85,10 +84,13 @@ def optimize_channel_growth(youtube):
                         "snippet": snippet
                     }
                 ).execute()
-                print("✅ SUCCESS: Channel Profile & Description upgraded for maximum growth!")
+                print("✅ SUCCESS: Channel Profile & Description upgraded!")
+        
+        time.sleep(25)
 
     except Exception as e:
         print(f"⚠️ Channel Optimization Notice: {e}")
+        time.sleep(25)
 
 
 def get_channel_videos(youtube, max_results=35):
@@ -134,9 +136,9 @@ def get_channel_videos(youtube, max_results=35):
 
 
 def optimize_with_gemini(title, description):
-    """Gemini AI Engine with Strict Character Limit Control"""
+    """Gemini AI Engine optimized for speed and safe limits"""
     prompt = f"""
-    Aap ek world-class YouTube SEO Specialist hain. Is video ke metadata ko analyze karke maximum CTR (Click-Through Rate), high search rankings, aur viewer retention ke liye optimize karein.
+    Aap ek world-class YouTube SEO Specialist hain. Is video ke metadata ko analyze karke maximum CTR, high search rankings, aur viewer retention ke liye optimize karein.
 
     CURRENT TITLE: {title}
     CURRENT DESCRIPTION: {description}
@@ -172,11 +174,9 @@ def optimize_with_gemini(title, description):
             if tags_part:
                 opt_tags = [t.strip() for t in tags_part.split(",") if t.strip()]
 
-        # Title max 100 characters limit safety check
         if len(opt_title) > 100:
             opt_title = opt_title[:97] + "..."
 
-        # Description max 5000 characters limit safety check
         if len(opt_desc) > 5000:
             opt_desc = opt_desc[:4997] + "..."
 
@@ -188,7 +188,7 @@ def optimize_with_gemini(title, description):
 
 
 def update_video_metadata(youtube, video_id, new_title, new_description, new_tags, category_id):
-    """Safely updates YouTube Video Metadata with API limit checks"""
+    """Safely updates YouTube Video Metadata"""
     try:
         v_request = youtube.videos().list(part="snippet", id=video_id)
         v_response = v_request.execute()
@@ -219,15 +219,15 @@ def update_video_metadata(youtube, video_id, new_title, new_description, new_tag
 
 def main():
     print("==================================================")
-    print("🚀 FULL CHANNEL & VIDEO GROWTH OPTIMIZER (PRO)")
+    print("🚀 OPTIMIZED 2-VIDEOS PER MINUTE SPEED ENGINE")
     print("==================================================")
     
     youtube = get_authenticated_service()
 
-    # 1. Pehle poore channel ki profile ko growth ke liye optimize karein
+    # 1. Channel Profile Optimization
     optimize_channel_growth(youtube)
 
-    # 2. Ab latest videos ki list fetch karke unhe optimize karein
+    # 2. Fetch Videos
     videos = get_channel_videos(youtube, max_results=35)
     print(f"\n📋 Fetched top {len(videos)} videos from channel for inspection.\n")
 
@@ -237,7 +237,6 @@ def main():
     for idx, v in enumerate(videos, 1):
         print(f"[{idx}/{len(videos)}] Checking Video: {v['title']}")
 
-        # Smart Skip Logic: Agar description 150 chars se zyada hai aur 5+ tags hain toh quota bachane ke liye skip karein
         is_description_good = len(v['description'].strip()) > 150
         has_sufficient_tags = len(v['tags']) >= 5
 
@@ -252,13 +251,18 @@ def main():
         if new_title and new_desc:
             update_video_metadata(youtube, v['id'], new_title, new_desc, new_tags, v['categoryId'])
             optimized_count += 1
+
+        # 🛑 25 seconds delay ensures roughly 2 requests per minute (safe for Free Tier)
+        print("   ⏳ Waiting 25 seconds to maintain safe speed limit...")
+        time.sleep(25)
         print("-" * 50)
 
     print("\n==================================================")
-    print(f"🎉 DAILY CHANNEL GROWTH AUTOMATION COMPLETE!")
+    print(f"🎉 AUTOMATION COMPLETED SUCCESSFULLY!")
     print(f"📊 Summary: {optimized_count} Videos Updated | {skipped_count} Skipped")
     print("==================================================")
 
 
 if __name__ == "__main__":
     main()
+    
