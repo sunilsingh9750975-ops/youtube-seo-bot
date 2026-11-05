@@ -13,7 +13,7 @@ REFRESH_TOKEN = os.environ.get("YT_REFRESH_TOKEN")
 
 # 2. Gemini API Configure karna
 genai.configure(api_key=GEMINI_API_KEY)
-model = genai.GenerativeModel("gemini-1.5-flash")
+model = genai.GenerativeModel("gemini-2.5-flash")
 
 def get_authenticated_service():
     """OAuth 2.0 ke zariye YouTube authenticated service banata hai"""
@@ -70,7 +70,7 @@ def get_channel_videos(youtube, max_results=35):
     return videos[:max_results]
 
 def optimize_with_gemini(title, description):
-    """Gemini 1.5-flash se behtareen SEO Title, Description aur Tags generate karwata hai"""
+    """Gemini 2.5-flash se behtareen SEO Title, Description aur Tags generate karwata hai"""
     prompt = f"""
     Aap ek expert YouTube SEO Optimizer hain. Niche diye gaye YouTube video ke title aur description ko analyze karein aur ek behtareen, engaging, aur search-friendly SEO package generate karein.
     
