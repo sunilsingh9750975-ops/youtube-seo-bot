@@ -13,9 +13,9 @@ CLIENT_ID = os.environ.get("YT_CLIENT_ID")
 CLIENT_SECRET = os.environ.get("YT_CLIENT_SECRET")
 REFRESH_TOKEN = os.environ.get("YT_REFRESH_TOKEN")
 
-# Gemini API Configuration
+# Gemini API Configuration (Updated to gemini-3.8-flash)
 genai.configure(api_key=GEMINI_API_KEY)
-model = genai.GenerativeModel("gemini-2.5-flash")
+model = genai.GenerativeModel("gemini-3.8-flash")
 
 
 def get_authenticated_service():
@@ -172,7 +172,6 @@ def optimize_with_gemini(title, description):
             if tags_part:
                 opt_tags = [t.strip() for t in tags_part.split(",") if t.strip()]
 
-        # STREAK LIMIT ENFORCEMENT FOR YOUTUBE RULES:
         # Title max 100 characters limit safety check
         if len(opt_title) > 100:
             opt_title = opt_title[:97] + "..."
