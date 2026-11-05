@@ -1,4 +1,4 @@
-name: YouTube Auto SEO Optimizer
+Name: YouTube Auto SEO Optimizer
 
 on:
   schedule:
@@ -19,7 +19,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install google-api-python-client google-auth-oauthlib google-auth-httplib2 google-generativeai
+          pip install google-api-python-client google-auth-oauthlib google-auth-httplib2 google-genai
 
       - name: Run Optimization Script
         env:
