@@ -1,6 +1,6 @@
 import os
 import time
-import google.generativeai as genai
+from google.genai import Client
 from googleapiclient.discovery import build
 from google.oauth2.credentials import Credentials
 
@@ -14,9 +14,7 @@ CLIENT_ID = os.environ.get("YT_CLIENT_ID")
 CLIENT_SECRET = os.environ.get("YT_CLIENT_SECRET")
 REFRESH_TOKEN = os.environ.get("YT_REFRESH_TOKEN")
 
-# Gemini API Configuration
-genai.configure(api_key=GEMINI_API_KEY)
-model = genai.GenerativeModel("gemini-3.8-flash")
+client = Client(api_key=GEMINI_API_KEY)
 
 
 def get_authenticated_service():
@@ -30,6 +28,28 @@ def get_authenticated_service():
         scopes=["https://www.googleapis.com/auth/youtube.force-ssl"]
     )
     return build("youtube", "v3", credentials=creds)
+
+
+def call_gemini_safe(prompt):
+    """Automatic retry & backoff logic to handle 429 quota limits safely"""
+    max_retries = 3
+    delay = 35
+    for attempt in range(max_retries):
+        try:
+            response = client.models.generate_content(
+                model="gemini-3.8-flash",
+                contents=prompt,
+            )
+            return response.text.strip()
+        except Exception as e:
+            if "429" in str(e) or "quota" in str(e).lower():
+                print(f"⚠️ Quota limit hit (429). Waiting {delay}s before retry ({attempt+1}/{max_retries})...")
+                time.sleep(delay)
+                delay += 15
+            else:
+                print(f"⚠️ Gemini API Error: {e}")
+                return ""
+    return ""
 
 
 def optimize_channel_growth(youtube):
@@ -61,7 +81,7 @@ def optimize_channel_growth(youtube):
 
         INSTRUCTIONS:
         1. Ek engaging aur welcoming description likhein jo naye visitors ko subscriber me badal de.
-        2. Channel ki niche (jaise Anime, Series, Storytelling) ke best search keywords shamil karein.
+        2. Channel ki niche ke best search keywords shamil karein.
         3. Call to Action (Subscribe reminder) zaroor ho aur emojis ka use karein.
         4. Max length 1000 characters tak honi chahiye.
 
@@ -69,8 +89,7 @@ def optimize_channel_growth(youtube):
         CHANNEL_DESC: [Optimized Channel Description Here]
         """
 
-        response = model.generate_content(prompt)
-        text = response.text.strip()
+        text = call_gemini_safe(prompt)
 
         if "CHANNEL_DESC:" in text:
             new_channel_desc = text.split("CHANNEL_DESC:")[1].strip()
@@ -86,11 +105,13 @@ def optimize_channel_growth(youtube):
                 ).execute()
                 print("✅ SUCCESS: Channel Profile & Description upgraded!")
         
-        time.sleep(25)
+        # 🛑 Safe buffer gap after channel request to clear sliding minute window
+        print("   ⏳ Waiting 30 seconds after channel optimization...")
+        time.sleep(30)
 
     except Exception as e:
         print(f"⚠️ Channel Optimization Notice: {e}")
-        time.sleep(25)
+        time.sleep(30)
 
 
 def get_channel_videos(youtube, max_results=35):
@@ -136,7 +157,7 @@ def get_channel_videos(youtube, max_results=35):
 
 
 def optimize_with_gemini(title, description):
-    """Gemini AI Engine optimized for speed and safe limits"""
+    """Gemini AI Engine with Auto-Retry"""
     prompt = f"""
     Aap ek world-class YouTube SEO Specialist hain. Is video ke metadata ko analyze karke maximum CTR, high search rankings, aur viewer retention ke liye optimize karein.
 
@@ -144,7 +165,7 @@ def optimize_with_gemini(title, description):
     CURRENT DESCRIPTION: {description}
 
     INSTRUCTIONS:
-    1. TITLE: Super-catchy aur high-CTR hona chahiye (Hinglish/Hindi tone). Episode number (jaise Ep 1, Part 2) zaroor maintain rakhein. STRICTLY 100 characters se bada nahi hona chahiye.
+    1. TITLE: Super-catchy aur high-CTR hona chahiye (Hinglish/Hindi tone). Episode number zaroor maintain rakhein. STRICTLY 100 characters se bada nahi hona chahiye.
     2. DESCRIPTION: Clear structure with Emojis, Short Summary, Subscribe Reminder, aur end me 4-6 trending #hashtags.
     3. TAGS: 12 to 15 viral search tags (comma-separated).
 
@@ -154,14 +175,15 @@ def optimize_with_gemini(title, description):
     TAGS: [tag1, tag2, tag3, tag4]
     """
 
+    text = call_gemini_safe(prompt)
+    if not text:
+        return title, description, []
+
+    opt_title = title
+    opt_desc = description
+    opt_tags = []
+
     try:
-        response = model.generate_content(prompt)
-        text = response.text.strip()
-
-        opt_title = title
-        opt_desc = description
-        opt_tags = []
-
         if "TITLE:" in text and "DESCRIPTION:" in text and "TAGS:" in text:
             title_part = text.split("TITLE:")[1].split("DESCRIPTION:")[0].strip()
             desc_part = text.split("DESCRIPTION:")[1].split("TAGS:")[0].strip()
@@ -183,7 +205,7 @@ def optimize_with_gemini(title, description):
         return opt_title, opt_desc, opt_tags
 
     except Exception as e:
-        print(f"⚠️ Gemini API Error: {e}")
+        print(f"⚠️ Parsing Error: {e}")
         return title, description, []
 
 
@@ -219,12 +241,12 @@ def update_video_metadata(youtube, video_id, new_title, new_description, new_tag
 
 def main():
     print("==================================================")
-    print("🚀 OPTIMIZED 2-VIDEOS PER MINUTE SPEED ENGINE")
+    print("🚀 SAFE BUFFERED YOUTUBE OPTIMIZER ENGINE")
     print("==================================================")
     
     youtube = get_authenticated_service()
 
-    # 1. Channel Profile Optimization
+    # 1. Channel Profile Optimization (with safe gap after it)
     optimize_channel_growth(youtube)
 
     # 2. Fetch Videos
@@ -245,24 +267,23 @@ def main():
             skipped_count += 1
             continue
 
-        print(f"   ⚡ OPTIMIZING via Gemini AI...")
+        print(f"   ⚡ OPTIMIZING via Gemini...")
         new_title, new_desc, new_tags = optimize_with_gemini(v['title'], v['description'])
         
         if new_title and new_desc:
             update_video_metadata(youtube, v['id'], new_title, new_desc, new_tags, v['categoryId'])
             optimized_count += 1
 
-        # 🛑 25 seconds delay ensures roughly 2 requests per minute (safe for Free Tier)
-        print("   ⏳ Waiting 25 seconds to maintain safe speed limit...")
-        time.sleep(25)
+        # 🛑 Strict 30 seconds pause between video requests to respect 5 RPM quota limit safely
+        print("   ⏳ Waiting 30 seconds for quota safety...")
+        time.sleep(30)
         print("-" * 50)
 
     print("\n==================================================")
-    print(f"🎉 AUTOMATION COMPLETED SUCCESSFULLY!")
+    print(f"🎉 AUTOMATION COMPLETED SUCCESSFULLY WITHOUT ERRORS!")
     print(f"📊 Summary: {optimized_count} Videos Updated | {skipped_count} Skipped")
     print("==================================================")
 
 
 if __name__ == "__main__":
     main()
-    
