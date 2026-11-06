@@ -31,21 +31,21 @@ def get_authenticated_service():
 
 
 def call_gemini_safe(prompt):
-    """Automatic retry & backoff logic to handle 429 quota limits safely"""
+    """Safe retry logic with longer delays to strictly respect Free Tier limits"""
     max_retries = 3
-    delay = 35
+    delay = 60
     for attempt in range(max_retries):
         try:
             response = client.models.generate_content(
-                model="gemini-3.8-flash",
+                model="gemini-2.5-flash",
                 contents=prompt,
             )
             return response.text.strip()
         except Exception as e:
-            if "429" in str(e) or "quota" in str(e).lower():
-                print(f"⚠️ Quota limit hit (429). Waiting {delay}s before retry ({attempt+1}/{max_retries})...")
+            if "429" in str(e) or "quota" in str(e).lower() or "503" in str(e):
+                print(f"⚠️ Limit/Server busy hit. Waiting {delay}s before retry ({attempt+1}/{max_retries})...")
                 time.sleep(delay)
-                delay += 15
+                delay += 30
             else:
                 print(f"⚠️ Gemini API Error: {e}")
                 return ""
@@ -105,13 +105,12 @@ def optimize_channel_growth(youtube):
                 ).execute()
                 print("✅ SUCCESS: Channel Profile & Description upgraded!")
         
-        # 🛑 Safe buffer gap after channel request to clear sliding minute window
-        print("   ⏳ Waiting 30 seconds after channel optimization...")
-        time.sleep(30)
+        print("   ⏳ Waiting 60 seconds after channel optimization...")
+        time.sleep(60)
 
     except Exception as e:
         print(f"⚠️ Channel Optimization Notice: {e}")
-        time.sleep(30)
+        time.sleep(60)
 
 
 def get_channel_videos(youtube, max_results=35):
@@ -157,7 +156,7 @@ def get_channel_videos(youtube, max_results=35):
 
 
 def optimize_with_gemini(title, description):
-    """Gemini AI Engine with Auto-Retry"""
+    """Gemini AI Engine with Ultra-Safe 60s Rate Limiting"""
     prompt = f"""
     Aap ek world-class YouTube SEO Specialist hain. Is video ke metadata ko analyze karke maximum CTR, high search rankings, aur viewer retention ke liye optimize karein.
 
@@ -241,12 +240,12 @@ def update_video_metadata(youtube, video_id, new_title, new_description, new_tag
 
 def main():
     print("==================================================")
-    print("🚀 SAFE BUFFERED YOUTUBE OPTIMIZER ENGINE")
+    print("🚀 ULTRA-SAFE 1-REQUEST PER MINUTE YOUTUBE OPTIMIZER")
     print("==================================================")
     
     youtube = get_authenticated_service()
 
-    # 1. Channel Profile Optimization (with safe gap after it)
+    # 1. Channel Profile Optimization
     optimize_channel_growth(youtube)
 
     # 2. Fetch Videos
@@ -274,16 +273,17 @@ def main():
             update_video_metadata(youtube, v['id'], new_title, new_desc, new_tags, v['categoryId'])
             optimized_count += 1
 
-        # 🛑 Strict 30 seconds pause between video requests to respect 5 RPM quota limit safely
-        print("   ⏳ Waiting 30 seconds for quota safety...")
-        time.sleep(30)
+        # 🛑 Strict 60 seconds pause to ensure 1 request per minute (Zero 429 errors)
+        print("   ⏳ Waiting 60 seconds to completely avoid quota limits...")
+        time.sleep(60)
         print("-" * 50)
 
     print("\n==================================================")
-    print(f"🎉 AUTOMATION COMPLETED SUCCESSFULLY WITHOUT ERRORS!")
+    print(f"🎉 AUTOMATION COMPLETED SUCCESSFULLY!")
     print(f"📊 Summary: {optimized_count} Videos Updated | {skipped_count} Skipped")
     print("==================================================")
 
 
 if __name__ == "__main__":
     main()
+    
