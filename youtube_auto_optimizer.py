@@ -31,13 +31,13 @@ def get_authenticated_service():
 
 
 def call_gemini_safe(prompt):
-    """Safe retry logic with longer delays to strictly respect Free Tier limits"""
+    """Safe retry logic using gemini-3.5-flash with 3-minute safe gaps"""
     max_retries = 3
-    delay = 60
+    delay = 180
     for attempt in range(max_retries):
         try:
             response = client.models.generate_content(
-                model="gemini-2.5-flash",
+                model="gemini-3.5-flash",
                 contents=prompt,
             )
             return response.text.strip()
@@ -45,7 +45,7 @@ def call_gemini_safe(prompt):
             if "429" in str(e) or "quota" in str(e).lower() or "503" in str(e):
                 print(f"⚠️ Limit/Server busy hit. Waiting {delay}s before retry ({attempt+1}/{max_retries})...")
                 time.sleep(delay)
-                delay += 30
+                delay += 60
             else:
                 print(f"⚠️ Gemini API Error: {e}")
                 return ""
@@ -105,12 +105,12 @@ def optimize_channel_growth(youtube):
                 ).execute()
                 print("✅ SUCCESS: Channel Profile & Description upgraded!")
         
-        print("   ⏳ Waiting 60 seconds after channel optimization...")
-        time.sleep(60)
+        print("   ⏳ Waiting 3 minutes after channel optimization...")
+        time.sleep(180)
 
     except Exception as e:
         print(f"⚠️ Channel Optimization Notice: {e}")
-        time.sleep(60)
+        time.sleep(180)
 
 
 def get_channel_videos(youtube, max_results=35):
@@ -156,7 +156,7 @@ def get_channel_videos(youtube, max_results=35):
 
 
 def optimize_with_gemini(title, description):
-    """Gemini AI Engine with Ultra-Safe 60s Rate Limiting"""
+    """Gemini AI Engine using gemini-3.5-flash with 3-minute intervals"""
     prompt = f"""
     Aap ek world-class YouTube SEO Specialist hain. Is video ke metadata ko analyze karke maximum CTR, high search rankings, aur viewer retention ke liye optimize karein.
 
@@ -240,7 +240,7 @@ def update_video_metadata(youtube, video_id, new_title, new_description, new_tag
 
 def main():
     print("==================================================")
-    print("🚀 ULTRA-SAFE 1-REQUEST PER MINUTE YOUTUBE OPTIMIZER")
+    print("🚀 GEMINI-3.5-FLASH 3-MIN INTERVAL OPTIMIZER")
     print("==================================================")
     
     youtube = get_authenticated_service()
@@ -266,16 +266,16 @@ def main():
             skipped_count += 1
             continue
 
-        print(f"   ⚡ OPTIMIZING via Gemini...")
+        print(f"   ⚡ OPTIMIZING via Gemini 3.5 Flash...")
         new_title, new_desc, new_tags = optimize_with_gemini(v['title'], v['description'])
         
         if new_title and new_desc:
             update_video_metadata(youtube, v['id'], new_title, new_desc, new_tags, v['categoryId'])
             optimized_count += 1
 
-        # 🛑 Strict 60 seconds pause to ensure 1 request per minute (Zero 429 errors)
-        print("   ⏳ Waiting 60 seconds to completely avoid quota limits...")
-        time.sleep(60)
+        # 🛑 Strict 3 minutes pause between requests
+        print("   ⏳ Waiting 3 minutes (180s) for absolute quota safety...")
+        time.sleep(180)
         print("-" * 50)
 
     print("\n==================================================")
@@ -286,4 +286,4 @@ def main():
 
 if __name__ == "__main__":
     main()
-    
+        
